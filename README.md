@@ -12,7 +12,7 @@ This project demonstrates how to implement vector search capabilities using Elas
 
 ## Prerequisites
 
-- Node.js (v14 or higher)
+- Node.js (v22 or higher)
 - Elasticsearch (running on localhost:9200)
 - TypeScript
 - npm or yarn
