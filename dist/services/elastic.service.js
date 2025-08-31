@@ -6,29 +6,29 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ElasticService = void 0;
 const elasticsearch_1 = require("@elastic/elasticsearch");
 const dotenv_1 = __importDefault(require("dotenv"));
-const transformers_1 = require("@huggingface/transformers");
 const config_1 = require("../config");
+const embedding_model_1 = require("../config/embedding_model");
 dotenv_1.default.config();
 const books = config_1.config.books;
 class ElasticService {
     client;
     constructor() {
         this.client = new elasticsearch_1.Client({
-            node: 'http://localhost:9200',
+            node: process.env.ELASTIC_SEARCH_URL,
             auth: {
                 apiKey: process.env.ELASTIC_SEARCH_API_KEY || ''
             }
         });
     }
-    async getEmbedding(input) {
-        const extractor = await (0, transformers_1.pipeline)('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-        return await extractor(input, { pooling: 'mean', normalize: true });
+    async getEmbedding(input, modelName) {
+        const extractor = await (0, embedding_model_1.getEmbedder)(modelName);
+        return await extractor(input);
     }
-    async ingestData() {
-        const extractor = await (0, transformers_1.pipeline)('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+    async ingestData(embeddingModelName) {
+        const extractor = await (0, embedding_model_1.getEmbedder)(embeddingModelName);
         const documentsWithEmbeddings = await Promise.all(books.map(async (doc) => {
             const textWithMetadata = `Title: ${doc.title}. Genre: ${doc.genre}. Content: ${doc.content}`;
-            const embedding = await extractor(textWithMetadata, { pooling: 'mean', normalize: true });
+            const embedding = await extractor(textWithMetadata);
             doc["embeddings"] = Array.from(embedding?.ort_tensor?.data, x => Number(x));
             return doc;
         }));
@@ -43,9 +43,10 @@ class ElasticService {
             }
         });
     }
-    async searchSimilarDocuments(query) {
-        const queryEmbedding = await this.getEmbedding(query);
+    async vectorSearch(query, modelName) {
+        const queryEmbedding = await this.getEmbedding(query, modelName);
         const result = await this.client.search({
+            index: "my_documents",
             _source: ["title", "content", "genre"],
             knn: {
                 field: 'embeddings',

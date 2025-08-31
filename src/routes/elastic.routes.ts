@@ -1,5 +1,6 @@
 import express from 'express';
 import { ElasticService } from '../services/elastic.service';
+import { embeddingModelNameList } from '../config/embedding_model';
 
 const router = express.Router();
 const elasticService = new ElasticService();
@@ -7,7 +8,7 @@ const elasticService = new ElasticService();
 // Route to ingest data
 router.post('/ingest', async (req, res) => {
     try {
-        const result = await elasticService.ingestData();
+        const result = await elasticService.ingestData(req.body.embeddingName || embeddingModelNameList['all-MiniLM-L6-v2']);
         res.status(200).json({
             status: 'success',
             message: 'Data ingested successfully',
@@ -23,9 +24,11 @@ router.post('/ingest', async (req, res) => {
 });
 
 // Route to search documents
-router.get('/search', async (req, res) => {
+router.get('/vector-search', async (req, res) => {
     try {
         const { query } = req.query;
+
+        const modelName = req.query.modelName || embeddingModelNameList['all-MiniLM-L6-v2']
 
         if (!query || typeof query !== 'string') {
             return res.status(400).json({
@@ -34,7 +37,7 @@ router.get('/search', async (req, res) => {
             });
         }
 
-        const results = await elasticService.searchSimilarDocuments(query);
+        const results = await elasticService.vectorSearch(query,modelName as embeddingModelNameList);
         res.status(200).json({
             status: 'success',
             results

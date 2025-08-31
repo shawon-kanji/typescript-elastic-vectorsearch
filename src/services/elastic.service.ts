@@ -1,7 +1,7 @@
 import { Client } from '@elastic/elasticsearch';
 import dotenv from 'dotenv';
-import { pipeline } from '@huggingface/transformers';
 import { config } from '../config';
+import { embeddingModelNameList, getEmbedder } from '../config/embedding_model';
 
 dotenv.config();
 const books = config.books;
@@ -18,17 +18,17 @@ export class ElasticService {
         });
     }
 
-    private async getEmbedding(input: string) {
-        const extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-        return await extractor(input, { pooling: 'mean', normalize: true });
+    private async getEmbedding(input: string,modelName: embeddingModelNameList) {
+        const extractor = await getEmbedder(modelName);
+        return await extractor(input);
     }
 
-    async ingestData() {
-        const extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+    async ingestData(embeddingModelName: embeddingModelNameList) {
+        const extractor = await getEmbedder(embeddingModelName);
 
         const documentsWithEmbeddings = await Promise.all(books.map(async (doc) => {
             const textWithMetadata = `Title: ${doc.title}. Genre: ${doc.genre}. Content: ${doc.content}`;
-            const embedding = await extractor(textWithMetadata, { pooling: 'mean', normalize: true });
+            const embedding = await extractor(textWithMetadata);
             doc["embeddings"] = Array.from(embedding?.ort_tensor?.data as Float32Array, x => Number(x))
             return doc;
         }));
@@ -45,10 +45,11 @@ export class ElasticService {
         });
     }
 
-    async searchSimilarDocuments(query: string) {
-        const queryEmbedding = await this.getEmbedding(query);
+    async vectorSearch(query: string,modelName: embeddingModelNameList) {
+        const queryEmbedding = await this.getEmbedding(query,modelName);
 
         const result = await this.client.search({
+            index: "my_documents",
             _source: ["title", "content", "genre"],
             knn: {
                 field: 'embeddings',
