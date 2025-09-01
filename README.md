@@ -56,13 +56,22 @@ npm start
 ### Data Ingestion
 - `POST /api/ingest`
   - Ingests sample book data into Elasticsearch with vector embeddings
-  - No request body required
+  - Optional request body:
+    ```json
+    {
+      "embeddingName": "all-MiniLM-L6-v2" | "all-mpnet-base-v2"
+    }
+    ```
+  - Default model: `all-MiniLM-L6-v2`
   - Returns success/error message with ingestion results
 
 ### Vector Search
-- `GET /api/search?query=your_search_query`
+- `GET /api/vector-search`
   - Performs similarity search using vector embeddings
-  - Required query parameter: `query` (string)
+  - Required parameters:
+    - `query` (string): The search query text
+  - Optional parameters:
+    - `modelName`: The embedding model to use (`all-MiniLM-L6-v2` or `all-mpnet-base-v2`)
   - Returns similar documents sorted by relevance
 
 ## Technical Implementation
@@ -73,10 +82,20 @@ The project uses:
 - `@huggingface/transformers` for generating text embeddings
 - TypeScript for type-safe development
 
+### Available Embedding Models
+The project supports two embedding models:
+1. `all-MiniLM-L6-v2` (default)
+   - A lightweight and efficient model suitable for general-purpose text embeddings
+   - Good balance between performance and resource usage
+2. `all-mpnet-base-v2`
+   - A more powerful model that can capture more nuanced semantic relationships
+   - Better performance but requires more computational resources
+
 Vector search is implemented by:
-1. Converting text to embeddings using the `all-MiniLM-L6-v2` model
+1. Converting text to embeddings using the selected model
 2. Storing documents with their embeddings in Elasticsearch
-3. Performing similarity search using these embeddings
+3. Enhancing search queries with additional context using LaMini-Flan-T5
+4. Performing similarity search using these embeddings
 
 ## Development
 
