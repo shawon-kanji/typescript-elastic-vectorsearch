@@ -28,8 +28,11 @@ class ElasticService {
         const extractor = await (0, embedding_model_1.getEmbedder)(embeddingModelName);
         const documentsWithEmbeddings = await Promise.all(books.map(async (doc) => {
             const textWithMetadata = `Title: ${doc.title}. Genre: ${doc.genre}. Content: ${doc.content}`;
-            const embedding = await extractor(textWithMetadata);
+            // Enhance the text with more context and summary
+            const enhancedText = await (0, embedding_model_1.enhanceText)(textWithMetadata);
+            const embedding = await extractor(enhancedText);
             doc["embeddings"] = Array.from(embedding?.ort_tensor?.data, x => Number(x));
+            // doc["enhanced_text"] = enhancedText; // Store enhanced text for reference
             return doc;
         }));
         return await this.client.helpers.bulk({
@@ -44,10 +47,12 @@ class ElasticService {
         });
     }
     async vectorSearch(query, modelName) {
-        const queryEmbedding = await this.getEmbedding(query, modelName);
+        // Enhance the search query with more context
+        const enhancedQuery = await (0, embedding_model_1.enhanceText)(query);
+        const queryEmbedding = await this.getEmbedding(enhancedQuery, modelName);
         const result = await this.client.search({
             index: "my_documents",
-            _source: ["title", "content", "genre"],
+            _source: ["title", "content", "genre", "enhanced_text"],
             knn: {
                 field: 'embeddings',
                 query_vector: Array.from(queryEmbedding?.ort_tensor?.data, x => Number(x))

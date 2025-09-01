@@ -1,7 +1,7 @@
 import { Client } from '@elastic/elasticsearch';
 import dotenv from 'dotenv';
 import { config } from '../config';
-import { embeddingModelNameList, getEmbedder } from '../config/embedding_model';
+import { embeddingModelNameList, getEmbedder, enhanceText } from '../config/embedding_model';
 
 dotenv.config();
 const books = config.books;
@@ -28,8 +28,11 @@ export class ElasticService {
 
         const documentsWithEmbeddings = await Promise.all(books.map(async (doc) => {
             const textWithMetadata = `Title: ${doc.title}. Genre: ${doc.genre}. Content: ${doc.content}`;
-            const embedding = await extractor(textWithMetadata);
+            // Enhance the text with more context and summary
+            const enhancedText = await enhanceText(textWithMetadata);
+            const embedding = await extractor(enhancedText);
             doc["embeddings"] = Array.from(embedding?.ort_tensor?.data as Float32Array, x => Number(x))
+            // doc["enhanced_text"] = enhancedText; // Store enhanced text for reference
             return doc;
         }));
 
@@ -45,12 +48,14 @@ export class ElasticService {
         });
     }
 
-    async vectorSearch(query: string,modelName: embeddingModelNameList) {
-        const queryEmbedding = await this.getEmbedding(query,modelName);
+    async vectorSearch(query: string, modelName: embeddingModelNameList) {
+        // Enhance the search query with more context
+        const enhancedQuery = await enhanceText(query);
+        const queryEmbedding = await this.getEmbedding(enhancedQuery, modelName);
 
         const result = await this.client.search({
             index: "my_documents",
-            _source: ["title", "content", "genre"],
+            _source: ["title", "content", "genre", "enhanced_text"],
             knn: {
                 field: 'embeddings',
                 query_vector: Array.from(queryEmbedding?.ort_tensor?.data as Float32Array, x => Number(x))

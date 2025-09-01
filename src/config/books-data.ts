@@ -1,9 +1,6 @@
-export const books: {
-    title: string,
-    genre: string,
-    content: string,
-    embeddings?: Number[]
-}[] = [
+import { Book } from '../types/book';
+
+export const books: Book[] = [
   {
     "title": "The Nightmare Insurance Agent",
     "genre": "Bureaucratic Horror",
